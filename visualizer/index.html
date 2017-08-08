@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+  .links path {
+    stroke-opacity: 0.3;
+  }
+
+  .claims path {
+    stroke-opacity: 0.8;
+  }
+
+  .nodes circle {
+  }
+
+  .mines circle {
+  }
+
+  .d3-tip {
+    line-height: 1;
+    padding: 6px;
+    background: rgba(0, 0, 0, 0.8);
+    color: #fff;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+
+  /* Creates a small triangle extender for the tooltip */
+  .d3-tip:after {
+    box-sizing: border-box;
+    display: inline;
+    font-size: 10px;
+    width: 100%;
+    line-height: 1;
+    color: rgba(0, 0, 0, 0.8);
+    content: "\25BC";
+    position: absolute;
+    text-align: center;
+  }
+
+  /* Style northward tooltips specifically */
+  .d3-tip.n:after {
+    margin: -2px 0 0 0;
+    top: 100%;
+    left: 0;
+  }
+</style>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<!-- http://bl.ocks.org/davegotz/bd54b56723c154d25eedde6504d30ad7 -->
+<script src="./d3-tip/d3-tip.js"></script>
+<script>
+
+const width = 1600;
+const height = 1200;
+const padding = 30;
+const color = d3.scaleOrdinal(d3.schemeCategory10);
+
+d3.json("./data/oxford-center-sparse-log.json", (error, graph) => {
+  if (error) throw error;
+
+  const xmin = d3.min(graph.map.sites, site => site.x);
+  const xmax = d3.max(graph.map.sites, site => site.x);
+
+  const ymin = d3.min(graph.map.sites, site => site.y);
+  const ymax = d3.max(graph.map.sites, site => site.y);
+
+  const xdomain = [xmin, xmax];
+  const ydomain = [ymin, ymax];
+
+  const xScale = d3.scaleLinear()
+                   .range([padding * 2, width - padding * 2])
+                   .domain(xdomain);
+
+  const yScale = d3.scaleLinear()
+                   .range([padding * 2, height - padding * 2])
+                   .domain(ydomain);
+
+  const siteMap = new Map();
+  for (const site of graph.map.sites) {
+    siteMap.set(site.id, site);
+  }
+
+  const svg = d3.select("body")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height);
+
+  var tool_tip = d3.tip()
+                   .attr("class", "d3-tip")
+                   .offset([-8, 0])
+                   .html((d) => "punter: " + d.claim.punter);
+  svg.call(tool_tip);
+
+  const lineFunction = d3.line()
+                         .x(d => xScale(d.x))
+                         .y(d => yScale(d.y))
+                         .curve(d3.curveLinear);
+
+  const edges = svg.append("g")
+                   .attr("class", "links")
+                   .selectAll("path")
+                   .data(graph.map.rivers)
+                   .enter().append("path")
+                   .attr("d", (d) => lineFunction([siteMap.get(d.source), siteMap.get(d.target)]))
+                   .attr("stroke", "#666")
+                   .attr("stroke-width", 2);
+
+
+  const nodes = svg.append("g")
+                   .attr("class", "nodes")
+                   .selectAll("circle")
+                   .data(graph.map.sites)
+                   .enter().append("circle")
+                   .attr("r", 4)
+                   .attr('cx', d => xScale(d.x))
+                   .attr('cy', d => yScale(d.y))
+                   .attr("fill", 'blue')
+                   .attr('stroke-width', 3)
+                   .attr('stroke', '#fff')
+                   .attr('opacity', 0.5);
+
+  const mines = svg.append("g")
+                   .attr("class", "mines")
+                   .selectAll("circle")
+                   .data(graph.map.mines)
+                   .enter().append("circle")
+                   .attr("r", 16)
+                   .attr('cx', d => xScale(siteMap.get(d).x))
+                   .attr('cy', d => yScale(siteMap.get(d).y))
+                   .attr("fill", 'yellow')
+                   .attr('stroke-width', 5)
+                   .attr('stroke', 'skyblue')
+                   .attr('opacity', 0.8);
+
+  function drawClaims(moves) {
+    return svg.append("g")
+              .attr("class", "claims")
+              .selectAll("path")
+              .data(moves)
+              .enter().append("path")
+              .attr("d", (d) => lineFunction([siteMap.get(d.claim.source), siteMap.get(d.claim.target)]))
+              .attr("stroke", (d) => color(d.claim.punter))
+              .attr("stroke-width", 4)
+              .on('mouseover', tool_tip.show)
+              .on('mouseout', tool_tip.hide);
+  }
+
+  function drawMove() {
+    if (cnt == graph.moves.length) {
+      return;
+    }
+    const moves = [graph.moves[cnt]];
+    drawClaims(moves);
+    cnt += 1;
+    setTimeout(drawMove, 10);
+  }
+
+  let cnt = 0;
+  drawMove();
+});
+</script>

@@ -1,0 +1,4 @@
+#!/bin/bash
+
+echo "For contest organizers who extracted the submitted package, you don't need to install anything."
+echo "The package includes a standalone binary in ./target directory, which should run in the VM as is."
