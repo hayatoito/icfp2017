@@ -17,3 +17,7 @@ Rust nightly is required (as of [2017-08-08 Tue]).
 $ rustup override set nightly
 $ cargo build
 ```
+
+# Visualizer
+
+[Sample](https://cdn.rawgit.com/hayatoito/icfp2017/6cb4a567/visualizer/index.html) (Map: oxford-center-sparse)
