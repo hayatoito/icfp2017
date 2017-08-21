@@ -20,4 +20,5 @@ $ cargo build
 
 # Visualizer
 
-[Sample](https://cdn.rawgit.com/hayatoito/icfp2017/6cb4a567/visualizer/index.html) (Map: oxford-center-sparse)
+- [oxford-center-space](https://cdn.rawgit.com/hayatoito/icfp2017/6cb4a567/visualizer/?map=oxford-center-sparse.json) (punters: 4)
+- [oxford](https://cdn.rawgit.com/hayatoito/icfp2017/6cb4a567/visualizer/?map=oxford.jsonl) (punters: 8)

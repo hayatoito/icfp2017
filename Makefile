@@ -1,11 +1,9 @@
-all: build
+all: release
 
 prereq:
 	curl https://sh.rustup.rs -sSf | sh -s -- --no-modify-path -y
 	rustup update
 	rustup override set nightly
-
-build: debug
 
 debug:
 	cargo build
@@ -13,7 +11,7 @@ debug:
 release:
 	cargo build --release
 
-run:
+run-debug:
 	cargo run
 
 run-release:

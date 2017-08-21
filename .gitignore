@@ -1,1 +1,4 @@
 /target/
+/visualizer/data/*
+/visualizer/latest.json
+/others/
