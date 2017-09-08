@@ -1,0 +1,21 @@
+
+running 3 tests
+test punter::arena::parse_sample_map ... ignored
+test punter::arena::regression_test ... ignored
+test punter::io::read_test ... ignored
+
+test result: ok. 0 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
+
+running 3 tests
+test circle_battle ... bench:   5,919,468 ns/iter (+/- 264,395)
+test lambda_battle ... bench:   6,630,384 ns/iter (+/- 658,787)
+test tube_battle   ... bench: 453,129,777 ns/iter (+/- 56,595,799)
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 3 measured; 0 filtered out
+

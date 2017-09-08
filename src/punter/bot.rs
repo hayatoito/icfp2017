@@ -4,6 +4,21 @@ use punter::prelude::*;
 use punter::protocol::*;
 use serde_json;
 use std;
+use std::path::PathBuf;
+
+pub enum BotMaker {
+    Internal(Strategy),
+    Offline(PathBuf),
+}
+
+impl BotMaker {
+    pub fn make(&self) -> Box<Bot> {
+        match *self {
+            BotMaker::Internal(ref strategy) => Box::new(InternalBot::new(*strategy)),
+            BotMaker::Offline(ref program) => Box::new(OfflineBot::new(program.clone())),
+        }
+    }
+}
 
 pub trait Bot {
     fn name(&self) -> String;
@@ -100,6 +115,7 @@ impl Bot for OfflineBot {
     }
     fn stop(&mut self, scoring: OfflineScoringSP) -> PunterResult<()> {
         let mut io = ChildIO::new(&self.program);
+        self.handsheke(&mut io)?;
         io.write_json_message(
             &serde_json::to_string(&scoring).unwrap(),
         )?;

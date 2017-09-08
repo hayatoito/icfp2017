@@ -23,12 +23,18 @@ where
     let mut buf = vec![];
     let size = r.read_until(':' as u8, &mut buf)?;
     debug!("{} bytes read", size);
-    assert!(size > 0);
+
+    if size == 0 {
+        return Err(PunterError::Io(std::io::ErrorKind::InvalidData.into()));
+    }
 
     // Drop ":".
     let n_str = str::from_utf8(&buf[0..buf.len() - 1]).unwrap();
     debug!("n_str: {}", n_str);
-    let n: u64 = n_str.parse()?;
+
+    // message might contain leading space, such as \n
+
+    let n: u64 = n_str.trim().parse()?;
 
     debug!("parsed n: {}", n);
     let buf = read_n(r, n)?;
@@ -52,6 +58,7 @@ where
 {
     debug!("C => S: {}", json);
     let message = format!("{}:{}", json.as_bytes().len(), json);
+    // let message = format!("{}:{}\n", json.as_bytes().len(), json);
     w.write(message.as_bytes())?;
     w.flush().unwrap();
     Ok(())
@@ -117,7 +124,11 @@ impl ChildIO {
         let mut child = Command::new(p.as_ref())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+            .stderr(if std::env::var("MY_ICFP2017_BOT_PRINT_STDERR").is_ok() {
+                Stdio::inherit()
+            } else {
+                Stdio::piped()
+            })
             .spawn()
             .expect("failed to execute child");
 

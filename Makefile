@@ -37,4 +37,4 @@ ssh:
 
 rsync:
 	: echo on vm: apt-get install rsync
-	rsync -avz --progress --delete -e 'ssh -p 2222' ~/src/icfp2017 "punter@localhost:src"
+	rsync -avz --progress --exclude "target/" --delete -e 'ssh -p 2222' ~/src/icfp2017 "punter@localhost:src"

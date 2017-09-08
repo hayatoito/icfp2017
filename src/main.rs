@@ -61,17 +61,20 @@ fn main() {
         debug!(">>> internal-arena_run");
         arena::internal_arena_run().expect("internal-arena failes");
     } else if let Some(sub) = matches.subcommand_matches("arena") {
-        let bots = sub.values_of("bot").unwrap().collect::<Vec<_>>();
-        arena::arena_run(bots).expect("offline_arena_run fails");
+        arena::arena_run(sub.values_of("bot").unwrap().collect::<Vec<_>>()).expect("offline_arena_run fails");
     } else if let Some(sub) = matches.subcommand_matches("single-match") {
-        let bots = sub.values_of("bot").unwrap().collect::<Vec<_>>();
-        let map = sub.value_of("map").unwrap();
-        let games = sub.value_of("games").unwrap().parse().unwrap();
-        arena::single_match(bots, map, games).expect("single-mach fails");
+        arena::single_match(
+            sub.values_of("bot").unwrap().collect::<Vec<_>>(),
+            sub.value_of("map").unwrap(),
+            sub.value_of("games").unwrap().parse().unwrap(),
+        ).expect("single-mach fails");
     } else if let Some(sub) = matches.subcommand_matches("online") {
         debug!(">>> online_run");
-        let port = sub.value_of("port").unwrap();
-        let game = play::online_run(&format!("{}:{}", "punter.inf.ed.ac.uk", port)).expect("game fails");
+        let game = play::online_run(&format!(
+            "{}:{}",
+            "punter.inf.ed.ac.uk",
+            sub.value_of("port").unwrap()
+        )).expect("game fails");
         game.print_summary();
     } else {
         debug!(">>> offline_run");

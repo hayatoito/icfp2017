@@ -7,6 +7,16 @@ use icfp2017::punter::arena;
 use test::Bencher;
 
 #[bench]
-fn sample_battle(b: &mut Bencher) {
-    b.iter(|| arena::sample_battle());
+fn circle_battle(b: &mut Bencher) {
+    b.iter(|| arena::sample_battle("circle.json"));
+}
+
+#[bench]
+fn lambda_battle(b: &mut Bencher) {
+    b.iter(|| arena::sample_battle("lambda.json"));
+}
+
+#[bench]
+fn tube_battle(b: &mut Bencher) {
+    b.iter(|| arena::sample_battle("tube.json"));
 }

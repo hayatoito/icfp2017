@@ -29,8 +29,13 @@ pub struct SetupSP {
 // Extnsions
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Settings {
+    // If None, omit this field from JSON, instead of "futures: null. for frictionless-banana
+    // See https://github.com/serde-rs/serde/issues/65
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub futures: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub splurge: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub options: Option<bool>,
 }
 

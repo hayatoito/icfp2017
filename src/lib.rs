@@ -9,8 +9,9 @@ extern crate quick_error;
 extern crate base64;
 extern crate bincode;
 extern crate chrono;
-extern crate im;
+extern crate pbr;
 extern crate rand;
+extern crate rayon;
 extern crate serde;
 extern crate serde_json;
 

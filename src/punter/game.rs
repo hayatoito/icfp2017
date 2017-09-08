@@ -1,8 +1,8 @@
 use base64;
 use bincode;
-use im::list::{List, cons};
 use punter::prelude::*;
 use punter::protocol::*;
+use std::cell::RefCell;
 use std::cmp;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -399,11 +399,14 @@ impl Game {
     }
 
     fn find_valuable_edge_by_weight(&self) -> EdgeClaim {
-        let mut edge_weights: EdgeWeights = vec![0; self.edges.len()];
+        let edge_weights: Rc<RefCell<EdgeWeights>> = Rc::new(RefCell::new(vec![0; self.edges.len()]));
         for (mine, dist_from_mine) in self.mines.iter().zip(self.dist_from_mine.iter()) {
-            self.calc_edge_weight_for(&mut edge_weights, *mine, dist_from_mine);
+            self.calc_edge_weight_for(edge_weights.clone(), *mine, dist_from_mine);
         }
-        edge_weights
+        assert_eq!(Rc::strong_count(&edge_weights), 1);
+        Rc::try_unwrap(edge_weights)
+            .unwrap()
+            .into_inner()
             .into_iter()
             .zip(self.edges.iter())
             .filter(|&(_, e)| e.is_empty())
@@ -416,67 +419,58 @@ impl Game {
         self.edge_st_to_edge_index[&(cmp::min(s, t), cmp::max(s, t))]
     }
 
-    fn calc_edge_weight_for(&self, edge_weights: &mut EdgeWeights, mine: Node, dist_from_mine: &[usize]) {
+    fn calc_edge_weight_for(&self, edge_weights: Rc<RefCell<EdgeWeights>>, mine: Node, dist_from_mine: &[usize]) {
         #[derive(Debug, Clone, PartialEq)]
         struct Entry {
             source: Node,
-            edge_backtrack: Rc<List<EdgeIndex>>,
+            weight_promise: u64,
+            prev: Option<(EdgeIndex, Rc<RefCell<Entry>>)>,
+            edge_weights: Rc<RefCell<EdgeWeights>>,
+        }
+
+        impl Drop for Entry {
+            fn drop(&mut self) {
+                match self.prev {
+                    Some((edge_index, ref prev_entry)) => {
+                        self.edge_weights.borrow_mut()[edge_index] += self.weight_promise;
+                        prev_entry.borrow_mut().weight_promise += self.weight_promise;
+                    }
+                    None => {}
+                }
+            }
         }
 
         let mut q = VecDeque::new();
-        q.push_back(Entry {
+        q.push_back(Rc::new(RefCell::new(Entry {
             source: mine,
-            edge_backtrack: Rc::new(List::new()),
-        });
+            weight_promise: 0,
+            prev: None,
+            edge_weights: edge_weights,
+        })));
         let mut visited = HashSet::new();
         visited.insert(mine);
 
         while let Some(entry) = q.pop_front() {
-            let Entry {
-                source,
-                edge_backtrack,
-            } = entry;
-            for ei in edge_backtrack.iter() {
-                edge_weights[*ei] += (dist_from_mine[source] * dist_from_mine[source]) as u64;
-            }
-
+            let source = entry.borrow().source;
             for adj in self.adj_edges[source].iter() {
-                if visited.contains(&adj.target) {
+                let target = adj.target;
+                if visited.contains(&target) {
                     continue;
                 }
 
-                match self.edges[adj.edge_index].claimed {
-                    Claimed::NotYet => {
-                        visited.insert(adj.target);
-                        let edge_index = self.edge_index(source, adj.target);
-                        let nb = Rc::new(cons(edge_index, edge_backtrack.clone()));
-                        q.push_back(Entry {
-                            source: adj.target,
-                            edge_backtrack: nb,
-                        });
-                    }
-                    Claimed::Claimed(p) => {
-                        if p == self.me {
-                            visited.insert(adj.target);
-                            let edge_index = self.edge_index(source, adj.target);
-                            let nb = Rc::new(cons(edge_index, edge_backtrack.clone()));
-                            q.push_back(Entry {
-                                source: adj.target,
-                                edge_backtrack: nb,
-                            });
-                        }
-                    }
-                    Claimed::Optioned(p0, p1) => {
-                        if p0 == self.me || p1 == self.me {
-                            visited.insert(adj.target);
-                            let edge_index = self.edge_index(source, adj.target);
-                            let nb = Rc::new(cons(edge_index, edge_backtrack.clone()));
-                            q.push_back(Entry {
-                                source: adj.target,
-                                edge_backtrack: nb,
-                            });
-                        }
-                    }
+                if match self.edges[adj.edge_index].claimed {
+                    Claimed::NotYet => true,
+                    Claimed::Claimed(p) => p == self.me,
+                    Claimed::Optioned(p0, p1) => p0 == self.me || p1 == self.me,
+                }
+                {
+                    visited.insert(target);
+                    q.push_back(Rc::new(RefCell::new(Entry {
+                        source: adj.target,
+                        weight_promise: (dist_from_mine[target] * dist_from_mine[target]) as u64,
+                        prev: Some((self.edge_index(source, target), entry.clone())),
+                        edge_weights: entry.borrow().edge_weights.clone(),
+                    })));
                 }
             }
         }
@@ -535,20 +529,15 @@ impl Game {
                 if visited.contains(&adj.target) {
                     continue;
                 }
-                match self.edges[adj.edge_index].claimed {
-                    Claimed::NotYet => {}
-                    Claimed::Claimed(p0) => {
-                        if p0 == p {
-                            visited.insert(adj.target);
-                            q.push_back(adj.target);
-                        }
-                    }
-                    Claimed::Optioned(p0, p1) => {
-                        if p0 == p || p1 == p {
-                            visited.insert(adj.target);
-                            q.push_back(adj.target);
-                        }
-                    }
+                if match self.edges[adj.edge_index].claimed {
+                    Claimed::NotYet => false,
+                    Claimed::Claimed(p0) => p0 == p,
+                    Claimed::Optioned(p0, p1) => p0 == p || p1 == p,
+                }
+                {
+                    visited.insert(adj.target);
+                    q.push_back(adj.target);
+
                 }
             }
         }
@@ -576,23 +565,15 @@ impl Game {
     fn print_punter_summary(&self, p: PunterId) {
         let owned_edges: Vec<(Node, Node)> = self.edges
             .iter()
-            .flat_map(|ref r| match r.claimed {
-                Claimed::NotYet => None,
-                Claimed::Claimed(p0) => {
-                    if p0 == p {
-                        Some((r.source, r.target))
-                    } else {
-                        None
-                    }
-                }
-                Claimed::Optioned(p0, p1) => {
-                    if p0 == p || p1 == p {
-                        Some((r.source, r.target))
-                    } else {
-                        None
-                    }
-                }
-
+            .flat_map(|ref r| if match r.claimed {
+                Claimed::NotYet => false,
+                Claimed::Claimed(p0) => p0 == p,
+                Claimed::Optioned(p0, p1) => p0 == p || p1 == p,
+            }
+            {
+                Some((r.source, r.target))
+            } else {
+                None
             })
             .collect();
         info!(
